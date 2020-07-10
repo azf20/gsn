@@ -43,10 +43,10 @@ contract RelayHub is IRelayHub {
     */
 
     // Gas cost of all relayCall() instructions after actual 'calculateCharge()'
-    uint256 constant private GAS_OVERHEAD = 34936;
+    uint256 constant private GAS_OVERHEAD = 34943;
 
     //gas overhead to calculate gasUseWithoutPost
-    uint256 constant private POST_OVERHEAD = 9959;
+    uint256 constant private POST_OVERHEAD = 9808;
 
     function getHubOverhead() external override view returns (uint256) {
         return GAS_OVERHEAD;
@@ -312,8 +312,12 @@ contract RelayHub is IRelayHub {
         }
 
         // The actual relayed call is now executed. The sender's address is appended at the end of the transaction data
-        (atomicData.relayedCallSuccess, atomicData.relayedCallReturnValue) = GsnEip712Library.execute(relayRequest, signature);
-
+        {
+            bool forwarderSuccess;
+            string memory error;
+            (forwarderSuccess, atomicData.relayedCallSuccess, error) = GsnEip712Library.execute(relayRequest, signature);
+            require( forwarderSuccess, error);
+        }
         // Finally, postRelayedCall is executed, with the relayedCall execution's status and a charge estimate
         // We now determine how much the recipient will be charged, to pass this value to postRelayedCall for accurate
         // accounting.

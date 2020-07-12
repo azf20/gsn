@@ -1,5 +1,5 @@
 import net from 'net'
-import { ether } from '@openzeppelin/test-helpers'
+import { ether } from '../common/Utils'
 
 import CommandsLogic, { DeploymentResult } from '../cli/CommandsLogic'
 import { KeyManager } from '../relayserver/KeyManager'
@@ -28,6 +28,7 @@ class GsnTestEnvironmentClass {
    *
    * @param host:
    * @param deployPaymaster - whether to deploy the naive paymaster instance for tests
+   * @param debug
    * @return
    */
   async startGsn (host?: string, deployPaymaster: boolean = true, debug = false): Promise<TestEnvironment> {
@@ -43,7 +44,10 @@ class GsnTestEnvironmentClass {
     if (from == null) {
       throw new Error('could not get unlocked account with sufficient balance')
     }
-    const deploymentResult = await commandsLogic.deployGsnContracts(from, deployPaymaster)
+    const deploymentResult = await commandsLogic.deployGsnContracts({
+      from,
+      deployPaymaster
+    })
     if (deployPaymaster) {
       const balance = await commandsLogic.fundPaymaster(from, deploymentResult.naivePaymasterAddress, ether('1'))
       console.log('Naive Paymaster successfully funded, balance:', Web3.utils.fromWei(balance))
@@ -130,7 +134,8 @@ class GsnTestEnvironmentClass {
       return
     }
 
-    const keyManager = new KeyManager(2)
+    const managerKeyManager = new KeyManager(1)
+    const workersKeyManager = new KeyManager(1)
     const txStoreManager = new TxStoreManager({ inMemory: true })
     /*
       readonly contractInteractor: ContractInteractor
@@ -142,7 +147,8 @@ class GsnTestEnvironmentClass {
     const relayServerParams = {
       contractInteractor: interactor,
       txStoreManager,
-      keyManager,
+      managerKeyManager,
+      workersKeyManager,
       url: relayUrl,
       hubAddress: deploymentResult.relayHubAddress,
       gasPriceFactor: 1,
@@ -161,5 +167,4 @@ class GsnTestEnvironmentClass {
   }
 }
 
-const GsnTestEnvironment = new GsnTestEnvironmentClass()
-export default GsnTestEnvironment
+export const GsnTestEnvironment = new GsnTestEnvironmentClass()

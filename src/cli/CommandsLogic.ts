@@ -2,11 +2,10 @@ import Web3 from 'web3'
 import { Contract, SendOptions } from 'web3-eth-contract'
 import HDWalletProvider from '@truffle/hdwallet-provider'
 import BN from 'bn.js'
-import { constants, ether } from '@openzeppelin/test-helpers'
 import { HttpProvider, TransactionReceipt } from 'web3-core'
 import { merge } from 'lodash'
 
-import { sleep } from '../common/Utils'
+import { constants, ether, sleep } from '../common/Utils'
 
 // compiled folder populated by "prepublish"
 import StakeManager from './compiled/StakeManager.json'
@@ -28,6 +27,14 @@ interface RegisterOptions {
   funds: string | BN
   relayUrl: string
   unstakeDelay: string
+}
+
+interface DeployOptions {
+  from: Address
+  gasPrice?: string
+  gasLimit?: number
+  deployPaymaster?: boolean
+  forwarderAddress?: string
 }
 
 export interface DeploymentResult {
@@ -200,31 +207,34 @@ export default class CommandsLogic {
     }
   }
 
-  contract (file: any): Contract {
-    return new this.web3.eth.Contract(file.abi, undefined, { data: file.bytecode })
+  contract (file: any, address?: string): Contract {
+    return new this.web3.eth.Contract(file.abi, address, { data: file.bytecode })
   }
 
-  async deployGsnContracts (from: Address, deployPaymaster: boolean = true, gasPrice?: string, gasLimit?: number): Promise<DeploymentResult> {
+  async deployGsnContracts (deployOptions: DeployOptions): Promise<DeploymentResult> {
     const options: SendOptions = {
-      from,
-      gas: gasLimit ?? 3e6,
-      gasPrice: gasPrice ?? (1e9).toString()
+      from: deployOptions.from,
+      gas: deployOptions.gasLimit ?? 3e6,
+      gasPrice: deployOptions.gasPrice ?? (1e9).toString()
     }
 
     const sInstance =
       await this.contract(StakeManager).deploy({}).send(options)
     const pInstance =
       await this.contract(Penalizer).deploy({}).send(options)
-    const fInstance =
-      await this.contract(Forwarder).deploy({}).send(merge(options, { gas: 5e6 }))
-
+    let fInstance
+    if (deployOptions.forwarderAddress == null) {
+      fInstance = await this.contract(Forwarder).deploy({}).send(merge(options, { gas: 5e6 }))
+    } else {
+      fInstance = this.contract(Forwarder, deployOptions.forwarderAddress)
+    }
     const rInstance = await this.contract(RelayHub).deploy({
       arguments: [sInstance.options.address, pInstance.options.address]
     }).send(merge(options, { gas: 5e6 }))
 
     let paymasterAddress = constants.ZERO_ADDRESS
-    if (deployPaymaster) {
-      const pmInstance = await this.deployPaymaster(options, rInstance.options.address, from, fInstance)
+    if (deployOptions.deployPaymaster === true) {
+      const pmInstance = await this.deployPaymaster(options, rInstance.options.address, deployOptions.from, fInstance)
       paymasterAddress = pmInstance.options.address
 
       // Overriding saved configuration with newly deployed instances

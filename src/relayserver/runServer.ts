@@ -54,7 +54,10 @@ const argv = parseArgs(process.argv.slice(2), {
 if (argv._.length > 0) error(`unknown extra params: ${argv._.toString()}`)
 
 console.log('runServer start. args', argv)
-const config: ServerConfigParams = argv.config != null ? require(argv.config) : {}
+let config: ServerConfigParams = {}
+if (argv.config != null && fs.existsSync(argv.config)) {
+  config = JSON.parse(fs.readFileSync(argv.config, 'utf8'))
+}
 const baseRelayFee: string = argv.baseRelayFee ?? config.baseRelayFee?.toString() ?? error('missing --baseRelayFee')
 const pctRelayFee: string = argv.pctRelayFee ?? config.pctRelayFee?.toString() ?? error('missing --pctRelayFee')
 const url: string = argv.url ?? config.url ?? error('missing --url')
@@ -71,7 +74,8 @@ if (devMode) {
   }
 }
 
-const keyManager = new KeyManager(2, workdir)
+const managerKeyManager = new KeyManager(1, workdir + '/manager')
+const workersKeyManager = new KeyManager(1, workdir + '/workers')
 const txStoreManager = new TxStoreManager({ workdir })
 const web3provider = new Web3.providers.HttpProvider(ethereumNodeUrl)
 const interactor = new ContractInteractor(web3provider,
@@ -79,7 +83,8 @@ const interactor = new ContractInteractor(web3provider,
 const gasPriceFactor = (parseInt(gasPricePercent) + 100) / 100
 const params = {
   txStoreManager,
-  keyManager,
+  managerKeyManager,
+  workersKeyManager,
   hubAddress: relayHubAddress,
   contractInteractor: interactor,
   url,

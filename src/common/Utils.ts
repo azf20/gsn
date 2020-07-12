@@ -85,8 +85,7 @@ export function calculateTransactionMaxPossibleGas (
   }: TransactionGasComponents): number {
   return hubOverhead +
     parseInt(relayCallGasLimit) +
-    parseInt(gasLimits.acceptRelayedCallGasLimit) +
-    parseInt(gasLimits.preRelayedCallGasLimit) +
+    parseInt(gasLimits.commitmentGasLimit) +
     parseInt(gasLimits.postRelayedCallGasLimit)
 }
 
@@ -145,7 +144,7 @@ interface TransactionGasComponents {
 }
 
 interface PaymasterGasLimits {
-  acceptRelayedCallGasLimit: string
+  commitmentGasLimit: string
   preRelayedCallGasLimit: string
   postRelayedCallGasLimit: string
 }
